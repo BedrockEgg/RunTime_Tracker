@@ -84,8 +84,9 @@ router.post('/', async (req, res) => {
             let level = null;
             // 只有当 batteryLevel 被传入且有效时才更新电量
             if (batteryLevel !== undefined) {
+                // 修正：允许 batteryLevel 为 0
                 if (batteryLevel >= 0 && batteryLevel <= 100) {
-                    level = batteryLevel;
+                    level = Number(batteryLevel); // 强制转换为数字
                 } else {
                     return res.status(400).json({
                         error: 'Invalid batteryLevel. Must be between 0 and 100.'
@@ -93,8 +94,10 @@ router.post('/', async (req, res) => {
                 }
             }
             
-            // 转换 isCharging（接受字符串或布尔值）
-            const chargingStatus = isCharging === true || isCharging === 'true' || isCharging === 1;
+            // FIX: 正确转换 isCharging（支持字符串和布尔值）
+            const chargingStatus = isCharging === true || 
+                                   String(isCharging).toLowerCase() === 'true' || 
+                                   isCharging === 1;
             
             // 调用记录函数（level 为 null 时 StatsRecorder 会保留旧值）
             statsRecorder.recordBattery(device, level, chargingStatus);
@@ -103,7 +106,6 @@ router.post('/', async (req, res) => {
 
         // 2. 处理应用信息
         if (app_name !== undefined || running !== undefined) {
-            // 删除已移除的校验
             await statsRecorder.recordUsage(device, app_name, running, package_name);
         }
 
