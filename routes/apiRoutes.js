@@ -78,21 +78,32 @@ router.post('/', async (req, res) => {
     }
 
     try {
-        // 1. 处理电池信息
-        if (batteryLevel !== undefined && batteryLevel > 0 && batteryLevel <= 100) {
-            const chargingStatus = isCharging === true;
-            statsRecorder.recordBattery(device, batteryLevel, chargingStatus);
+        // ==================== FIX: 修复电池信息处理逻辑 ====================
+        // 只要 batteryLevel 或 isCharging 任意一个被传入，就处理电池信息
+        if (batteryLevel !== undefined || isCharging !== undefined) {
+            let level = null;
+            // 只有当 batteryLevel 被传入且有效时才更新电量
+            if (batteryLevel !== undefined) {
+                if (batteryLevel >= 0 && batteryLevel <= 100) {
+                    level = batteryLevel;
+                } else {
+                    return res.status(400).json({
+                        error: 'Invalid batteryLevel. Must be between 0 and 100.'
+                    });
+                }
+            }
+            
+            // 转换 isCharging（接受字符串或布尔值）
+            const chargingStatus = isCharging === true || isCharging === 'true' || isCharging === 1;
+            
+            // 调用记录函数（level 为 null 时 StatsRecorder 会保留旧值）
+            statsRecorder.recordBattery(device, level, chargingStatus);
         }
+        // ===================================================================
 
         // 2. 处理应用信息
         if (app_name !== undefined || running !== undefined) {
-            // 校验应用信息的完整性
-            if (running !== false && !app_name) {
-                return res.status(400).json({
-                    error: 'Missing app_name when running is true'
-                });
-            }
-
+            // 删除已移除的校验
             await statsRecorder.recordUsage(device, app_name, running, package_name);
         }
 
